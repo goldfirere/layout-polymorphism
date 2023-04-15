@@ -11,17 +11,28 @@ step from surface OCaml.
       | e · e               Specialization
       | Fun (α : κ) -> e    Type abstraction
       | e[τ]                Type application
+      | FUN (ξ <: κ) -> e   Kind abstraction
+      | e{κ}                Kind application
       | ⌈e⌉                 Lift to dynamic
     τ, σ ::=                Types
       | α                   Type variable
       | τ ->_ϕ τ            Function
       | ∀ (α : κ) -> τ      Polymorphic function
+      | ∀ (ξ <: κ) -> τ     Kind-polymorphic function
       | ...                 Base types
-    κ ::=                   Kinds
+    K ::=                   Base kinds
       | any                 Top kind
+      | C                   Concrete kind
+    C ::=                   Concrete kinds
       | value               Value kind
       | float64             64-bit floats
       | ...                 Base kinds
+    κ ::=                   Kinds
+      | ξ                   Kind variable
+      | K                   Base kind
+    Δ ::=                   Kind contexts
+      | ∅                   Empty
+      | Δ, ξ <: κ           Kind variable
     Σ ::=                   Type contexts
       | ∅                   Empty
       | Σ, α : κ            Type variable
@@ -29,15 +40,22 @@ step from surface OCaml.
       | ∅                   Empty
       | Γ, x :_ϕ τ          Term variable
 
+All contexts should be viewed as sets and allow arbitrary well-scoped
+permutation.
+
 ## Typing rules for kinds
 
-    κ layout ::=
+    Δ ⊢ κ layout ::=
 
-    -------- (Layout)
-    κ layout
+    Δ ⊢ κ layout
+    -------------------- (Var)
+    Δ, ξ <: κ ⊢ ξ layout
 
-A kind κ for which `κ layout` holds describes a runtime layout for types.
-If `κ layout` does *not* hold and if `τ : κ`, then it is non-sensical to
+    ------------ (Base)
+    Δ ⊢ K layout
+
+A kind κ for which `Δ ⊢ κ layout` holds describes a runtime layout for types.
+If `Δ ⊢ κ layout` does *not* hold and if `τ : κ`, then it is non-sensical to
 have any expression `e` such that `e : τ`.
 
 In OCaml, without higher-order kinds, *all* kinds describe layouts, as we
@@ -45,97 +63,130 @@ see in the Layout axiom above. In a language with higher-order kinds, not
 all kinds will be layouts. We include `layout` premises below to suggest
 where checks might be needed in a more elaborate language.
 
-    κ concrete ::=
+    Δ ⊢ κ concrete ::=
 
-    -------------- (Value)
-    value concrete
+    Δ ⊢ κ concrete
+    ------------------ (Var)
+    Δ, ξ <: κ concrete
 
-    ---------------- (Float)
-    float64 concrete
+    -------------- (Concrete)
+    Δ ⊢ C concrete
 
 This unary relation, `concrete`, checks whether a layout has enough information
-to actually be compiled. Notably, `any concrete` does *not* hold.
+to actually be compiled. Notably, `Δ ⊢ any concrete` does *not* hold.
 
 ## Subtyping for kinds
 
 There is a subtype relation on kinds.
 
-    κ₁ <: κ₂ ::=
+    Δ ⊢ κ₁ <: κ₂ ::=
 
-    -------- (Any)
-    κ <: any
+    ------------------ (Var)
+    Δ, ξ <: κ ⊢ ξ <: κ
 
-    ------ (Refl)
-    κ <: κ
+    fv(κ) ⊆ dom(Δ)
+    -------------- (Any)
+    Δ ⊢ κ <: any
 
-    κ₁ <: κ₂
-    κ₂ <: κ₃
-    -------- (Trans)
-    κ₁ <: κ₃
+    fv(κ) ⊆ dom(Δ)
+    -------------- (Refl)
+    Δ ⊢ κ <: κ
+
+    Δ ⊢ κ₁ <: κ₂
+    Δ ⊢ κ₂ <: κ₃
+    ------------ (Trans)
+    Δ ⊢ κ₁ <: κ₃
 
 ## Typing rules for types
 
-    Σ ⊢ τ : κ ::=
+    Δ; Σ ⊢ τ : κ ::=
 
-    ---------------- (TyVar)
-    Σ, α : κ ⊢ α : κ
+    ------------------- (TyVar)
+    Δ; Σ, α : κ ⊢ α : κ
 
-    Σ ⊢ τ₁ : κ₁   κ₁ layout
-    Σ ⊢ τ₂ : κ₂   κ₂ layout
-    -------------------------- (Arrow)
-    Σ ⊢ τ₁ ->_ϕ τ₂ : value
+    Δ; Σ ⊢ τ₁ : κ₁
+    Δ ⊢ κ₁ layout
+    Δ; Σ ⊢ τ₂ : κ₂
+    Δ ⊢ κ₂ layout
+    ------------------------------ (Arrow)
+    Δ; Σ ⊢ τ₁ ->_ϕ τ₂ : value
 
-    Σ, α : κ₁ ⊢ τ : κ₂
-    κ₂ layout
-    ---------------------- (ForAll)
-    Σ ⊢ ∀ α : κ₁ -> τ : κ₂
+    fv(κ₁) ⊆ dom(Δ)
+    Δ; Σ, α : κ₁ ⊢ τ : κ₂
+    Δ ⊢ κ₂ layout
+    -------------------------- (ForAll)
+    Δ; Σ ⊢ ∀ (α : κ₁) -> τ : κ₂
 
-    Σ ⊢ τ : κ₁
-    κ₁ <: κ₂
-    ----------- (Sub)
-    Σ ⊢ τ : κ₂
+    fv(κ₁) ⊆ dom(Δ)
+    Δ, ξ <: κ₁; Σ ⊢ τ : κ₂
+    Δ ⊢ κ₂ layout
+    ---------------------------- (KForAll)
+    Δ; Σ ⊢ ∀ (ξ <: κ₁) -> τ : κ₂
+
+    Δ; Σ ⊢ τ : κ₁
+    Δ ⊢ κ₁ <: κ₂
+    ------------- (Sub)
+    Δ; Σ ⊢ τ : κ₂
 
 ## Typing rules for terms
 
-    Σ; Γ ⊢ e :_ϕ τ ::=
+    Δ; Σ; Γ ⊢ e :_ϕ τ ::=
 
-    ------------------------- (Var)
-    Σ; Γ, x_ϕ : τ ⊢ x :_ϕ τ
+    -------------------------- (Var)
+    Δ; Σ; Γ, x :_ϕ τ ⊢ x :_ϕ τ
 
-    Σ; Γ ⊢ e :_s τ
-    ---------------- (Lift)
-    Σ; Γ ⊢ ⌈e⌉ :_d τ
+    Δ; Σ; Γ ⊢ e :_s τ
+    ----------------- (Lift)
+    Δ; Σ; Γ ⊢ ⌈e⌉ :_d τ
 
-    Σ ⊢ τ₁ : κ    κ layout
-    Σ; Γ, x :_ϕ τ₁ ⊢ e :_s τ₂
-    ----------------------------------------- (Lam-S)
-    Σ; Γ ⊢ fun (x :_ϕ τ₁) -> e :_s τ₁ ->_ϕ τ₂
+    Δ; Σ ⊢ τ₁ : κ
+    Δ ⊢ κ layout
+    Δ; Σ; Γ, x :_ϕ τ₁ ⊢ e :_s τ₂
+    -------------------------------------------- (Lam-S)
+    Δ; Σ; Γ ⊢ fun (x :_ϕ τ₁) -> e :_s τ₁ ->_ϕ τ₂
 
-    Σ ⊢ τ₁ : κ    κ concrete
-    Σ; Γ, x :_ϕ τ₁ ⊢ e :_d τ₂
-    ------------------------------------------- (Lam-D)
-    Σ; Γ ⊢ fun (x :_ϕ τ₁) -> e :_d τ₁ ->_ϕ τ₂
+    Δ; Σ ⊢ τ₁ : κ
+    Δ ⊢ κ concrete
+    Δ; Σ; Γ, x :_ϕ τ₁ ⊢ e :_d τ₂
+    -------------------------------------------- (Lam-D)
+    Δ; Σ; Γ ⊢ fun (x :_ϕ τ₁) -> e :_d τ₁ ->_ϕ τ₂
 
-    Σ; Γ ⊢ f :_s τ₁ ->_s τ₂   Σ; Γ ⊢ e :_s τ₁
+    Δ; Σ; Γ ⊢ f :_s τ₁ ->_s τ₂
+    Δ; Σ; Γ ⊢ e :_s τ₁
     ----------------------------------------- (App-S-S)
-    Σ; Γ ⊢ f e :_s τ₂
+    Δ; Σ; Γ ⊢ f e :_s τ₂
 
-    Σ; Γ ⊢ f :_d τ₁ ->_d τ₂
-    Σ; Γ ⊢ e :_d τ₁   Σ ⊢ τ₁ : κ   κ concrete
-    ------------------------------------------------------------ (App-D-D)
-    Σ; Γ ⊢ f e :_d τ₂
+    Δ; Σ; Γ ⊢ f :_d τ₁ ->_d τ₂
+    Δ; Σ; Γ ⊢ e :_d τ₁
+    Δ; Σ ⊢ τ₁ : κ
+    Δ ⊢ κ concrete
+    --------------------------------------------------- (App-D-D)
+    Δ; Σ; Γ ⊢ f e :_d τ₂
 
-    Σ, α : κ; Γ ⊢ e :_ϕ τ
-    ------------------------------------------ (TyLam)
-    Σ; Γ ⊢ Fun (α : κ) -> e :_ϕ ∀ (α : κ) -> τ
+    fv(κ) ⊆ dom(Δ)
+    Δ; Σ, α : κ; Γ ⊢ e :_ϕ τ
+    --------------------------------------------- (TyLam)
+    Δ; Σ; Γ ⊢ Fun (α : κ) -> e :_ϕ ∀ (α : κ) -> τ
 
-    Σ; Γ ⊢ f :_ϕ ∀ (α : κ) -> τ₂   Σ ⊢ τ₁ : κ
-    ----------------------------------------- (TyApp)
-    Σ; Γ ⊢ f[τ₁] :_ϕ τ₂{τ₁/α}
+    Δ; Σ; Γ ⊢ f :_ϕ ∀ (α : κ) -> τ₂
+    Δ; Σ ⊢ τ₁ : κ
+    ----------------------------------------------- (TyApp)
+    Δ; Σ; Γ ⊢ f[τ₁] :_ϕ τ₂{τ₁/α}
 
-    Σ; Γ ⊢ f :_s τ₁ ->_d τ₂   Σ; Γ ⊢ e :_d τ₁
-    ----------------------------------------- (Spec)
-              Σ; Γ ⊢ f · e :_d τ₂
+    fv(κ) ⊆ dom(Δ)
+    Δ, ξ <: κ; Σ; Γ ⊢ e : τ
+    --------------------------------------------- (KiLam)
+    Δ; Σ; Γ ⊢ FUN (ξ <: κ) -> e : ∀ (ξ <: κ) -> τ
+
+    Δ; Σ; Γ ⊢ e : ∀ (ξ <: κ₂) -> τ
+    Δ ⊢ κ <: κ₂
+    ------------------------------ (KiApp)
+    Δ; Σ; Γ ⊢ e{κ} : τ{κ/ξ}
+
+    Δ; Σ; Γ ⊢ f :_s τ₁ ->_d τ₂
+    Δ; Σ; Γ ⊢ e :_d τ₁
+    ----------------------------------------------- (Spec)
+    Δ; Σ; Γ ⊢ f · e :_d τ₂
 
 ## The static computation operator `⌊-⌋`
 
