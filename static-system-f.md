@@ -17,6 +17,7 @@
     κ ::=                   Kinds
       | any                 Top kind
       | value               Value kind
+      | float64             64-bit floats
       | ...                 Base kinds
     Σ ::=                   Type contexts
       | ∅                   Empty
@@ -26,6 +27,8 @@
       | Γ, x : τ            Term variable
 
 ## Typing rules for kinds
+
+    κ layout ::=
 
     -------- (Layout)
     κ layout
@@ -39,9 +42,22 @@ see in the Layout axiom above. In a language with higher-order kinds, not
 all kinds will be layouts. We include `layout` premises below to suggest
 where checks might be needed in a more elaborate language.
 
+    κ concrete ::=
+
+    -------------- (Value)
+    value concrete
+
+    ---------------- (Float)
+    float64 concrete
+
+This unary relation, `concrete`, checks whether a layout has enough information
+to actually be compiled. Notably, `any concrete` does *not* hold.
+
 ## Subtyping for kinds
 
 There is a subtype relation on kinds.
+
+    κ₁ <: κ₂ ::=
 
     -------- (Any)
     κ <: any
@@ -55,6 +71,8 @@ There is a subtype relation on kinds.
     κ₁ <: κ₃
 
 ## Typing rules for types
+
+    Σ ⊢ τ : κ ::=
 
     ---------------- (TyVar)
     Σ, α : κ ⊢ α : κ
@@ -76,50 +94,51 @@ There is a subtype relation on kinds.
 
 ## Typing rules for terms
 
+    Σ; Γ ⊢ e :_ϕ τ ::=
+
     ------------------------- (Var)
     Σ; Γ, x_ϕ : τ ⊢ x_ϕ :_ϕ τ
 
-     Σ; Γ ⊢ e :_s τ
+    Σ; Γ ⊢ e :_s τ
     ---------------- (Lift)
     Σ; Γ ⊢ ⌈e⌉ :_d τ
 
-    Σ ⊢ τ₁ : κ      Σ; Γ, x_ϕ : τ₁ ⊢ e :_s τ₂
+    Σ ⊢ τ₁ : κ    κ layout
+    Σ; Γ, x_ϕ : τ₁ ⊢ e :_s τ₂
     ----------------------------------------- (Lam-S)
     Σ; Γ ⊢ fun (x_ϕ : τ₁) -> e :_s τ₁ ->_ϕ τ₂
 
-    Σ; Γ, x_ϕ : τ₁ ⊢ e :_d τ₂   Σ ⊢ τ₁ concrete
+    Σ ⊢ τ₁ : κ    κ concrete
+    Σ; Γ, x_ϕ : τ₁ ⊢ e :_d τ₂
     ------------------------------------------- (Lam-D)
-     Σ; Γ ⊢ fun (x_ϕ : τ₁) -> e :_d τ₁ ->_ϕ τ₂
+    Σ; Γ ⊢ fun (x_ϕ : τ₁) -> e :_d τ₁ ->_ϕ τ₂
 
     Σ; Γ ⊢ f :_s τ₁ ->_s τ₂   Σ; Γ ⊢ e :_s τ₁
     ----------------------------------------- (App-S-S)
-                Σ; Γ ⊢ f e :_s τ₂
+    Σ; Γ ⊢ f e :_s τ₂
 
-    Σ; Γ ⊢ f :_d τ₁ ->_d τ₂   Σ; Γ ⊢ e :_d τ₁   Σ ⊢ τ₁ concrete
+    Σ; Γ ⊢ f :_d τ₁ ->_d τ₂
+    Σ; Γ ⊢ e :_d τ₁   Σ ⊢ τ₁ : κ   κ concrete
     ------------------------------------------------------------ (App-D-D)
-                         Σ; Γ ⊢ f e :_d τ₂
+    Σ; Γ ⊢ f e :_d τ₂
+
+    Σ, α : κ; Γ ⊢ e :_ϕ τ
+    ------------------------------------------ (TyLam)
+    Σ; Γ ⊢ Fun (α : κ) -> e :_ϕ ∀ (α : κ) -> τ
+
+    Σ; Γ ⊢ f :_ϕ ∀ (α : κ) -> τ₂   Σ ⊢ τ₁ : κ
+    ----------------------------------------- (TyApp)
+    Σ; Γ ⊢ f[τ₁] :_ϕ τ₂{τ₁/α}
 
     Σ; Γ ⊢ f :_s τ₁ ->_d τ₂   Σ; Γ ⊢ e :_d τ₁
     ----------------------------------------- (Spec)
               Σ; Γ ⊢ f · e :_d τ₂
 
-    Σ; Γ ⊢ f :_d τ₁ ->_s τ₂   Σ; Γ ⊢ e :_s τ₁
-    ----------------------------------------- (App-D-S)
-              Σ; Γ ⊢ f e :_d τ₂
-
-       Σ, α : κ; Γ ⊢ e :_ϕ τ   α ∉ fv(Γ)
-    ---------------------------------------- (TyLam)
-    Σ; Γ ⊢ Fun (α : κ) -> e :_ϕ ∀ α : κ -> τ
-
-    Σ; Γ ⊢ f :_ϕ ∀ (α : κ) -> τ   Σ ⊢ σ : κ
-    --------------------------------------- (TyApp)
-            Σ; Γ ⊢ f[σ] :_ϕ τ{σ/α}
-
 ## The static computation operator `⌊-⌋`
 
 The important theorem we want is:
 
-  **Theorem 1.** If `· ⊢ e : τ` then `· ⊢ ⌊e⌋ : τ`.
+  **Theorem 1.** If `∅ ⊢ e :_s τ` then `∅ ⊢ ⌊e⌋ :_d τ`.
 
 (Probably we can let the context be non-empty as well, if we define `⌊Γ⌋` as
 "make all the variables dynamic," but the important case is a closed term.)
