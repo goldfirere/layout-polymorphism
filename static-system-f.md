@@ -4,16 +4,23 @@ This is meant to be an *internal* language, produced via an elaboration
 step from surface OCaml.
 
     ϕ ::= s | d             Phases
+    b ::=                   Base values
+      | ...                 Integers, constructors, etc.
     e, f ::=                Terms
       | x                   Variable with phase
       | fun (x :_ϕ τ) -> e  Term abstraction
       | e e                 Normal application
-      | e · e               Specialization
       | Fun (α : κ) -> e    Type abstraction
       | e[τ]                Type application
       | FUN (ξ <: κ) -> e   Kind abstraction
       | e{κ}                Kind application
-      | ⌈e⌉                 Lift to dynamic
+      | ⌈e⌉                 Specialize
+      | b                   Base values
+    v ::=                   Values
+      | fun (x :_ϕ τ) -> e  Term abstraction
+      | Fun (α : κ) -> v    Type abstraction over value
+      | FUN (ξ <: κ) -> v   Kind abstraction over value
+      | b                   Base values
     τ, σ ::=                Types
       | α                   Type variable
       | τ ->_ϕ τ            Function
@@ -39,6 +46,15 @@ step from surface OCaml.
     Γ ::=                   Term contexts
       | ∅                   Empty
       | Γ, x :_ϕ τ          Term variable
+    Q ::=                   Representation constraints
+      | ∅                   Empty
+      | rep κ               Representable
+      | Q₁ ∧ Q₂             Conjunction
+    θ ::=                   Substitutions
+      | ∅                   Empty
+      | θ ∘ κ/ξ             Kind substitution
+      | θ ∘ τ/α             Type substitution
+      | θ ∘ e/x             Term substitution
 
 All contexts should be viewed as sets and allow arbitrary well-scoped
 permutation.
@@ -63,17 +79,18 @@ see in the Layout axiom above. In a language with higher-order kinds, not
 all kinds will be layouts. We include `layout` premises below to suggest
 where checks might be needed in a more elaborate language.
 
-    Δ ⊢ κ concrete ::=
+    Δ ⊢ κ rep ::=
 
-    Δ ⊢ κ concrete
+    Δ ⊢ κ rep
     ------------------ (Var)
-    Δ, ξ <: κ concrete
+    Δ, ξ <: κ rep
 
     -------------- (Concrete)
-    Δ ⊢ C concrete
+    Δ ⊢ C rep
 
-This unary relation, `concrete`, checks whether a layout has enough information
-to actually be compiled. Notably, `Δ ⊢ any concrete` does *not* hold.
+This unary relation, `rep`, checks whether a layout has enough information
+to actually be compiled (i.e. it is representable).
+Notably, `Δ ⊢ any rep` does *not* hold.
 
 ## Subtyping for kinds
 
@@ -130,14 +147,20 @@ There is a subtype relation on kinds.
 
 ## Typing rules for terms
 
-    Δ; Σ; Γ ⊢ e :_ϕ τ ::=
+    Δ; Σ; Γ ⊢ e :_ϕ τ ⊣ Q ::=
+    (* actually, the _d relation doesn't emit a Q, but
+       that's annoying to state, so we just accumulate
+       an empty Q *)
 
-    -------------------------- (Var)
-    Δ; Σ; Γ, x :_ϕ τ ⊢ x :_ϕ τ
+    ------------------------------ (Var)
+    Δ; Σ; Γ, x :_ϕ τ ⊢ x :_ϕ τ ⊣ ∅
 
-    Δ; Σ; Γ ⊢ e :_s τ
-    ----------------- (Lift)
-    Δ; Σ; Γ ⊢ ⌈e⌉ :_d τ
+    Δ; Σ; Γ ⊢ e :_s ∀ (ξ₁ <: κ₁') ⋯ (ξⱼ <: κⱼ') -> τ ⊣ Q
+    ∀ i s.t. 1 ≤ i ≤ j: θᵢ = κᵢ/ξᵢ ∘ ⋯ ∘ κ₁/ξ₁
+    ∀ i s.t. 1 ≤ i ≤ j: Δ ⊢ κᵢ <: κᵢ'{θᵢ₋₁}
+    ∀ κ s.t. rep κ ∈ Q: Δ ⊢ κ{θⱼ} rep
+    ----------------- (Spec)
+    Δ; Σ; Γ ⊢ ⌈e{κ₁}{⋯}{κⱼ}⌉ :_d τ{θⱼ} ⊣ ∅
 
     Δ; Σ ⊢ τ₁ : κ
     Δ ⊢ κ layout
@@ -146,7 +169,7 @@ There is a subtype relation on kinds.
     Δ; Σ; Γ ⊢ fun (x :_ϕ τ₁) -> e :_s τ₁ ->_ϕ τ₂
 
     Δ; Σ ⊢ τ₁ : κ
-    Δ ⊢ κ concrete
+    Δ ⊢ κ rep
     Δ; Σ; Γ, x :_ϕ τ₁ ⊢ e :_d τ₂
     -------------------------------------------- (Lam-D)
     Δ; Σ; Γ ⊢ fun (x :_ϕ τ₁) -> e :_d τ₁ ->_ϕ τ₂
@@ -159,7 +182,7 @@ There is a subtype relation on kinds.
     Δ; Σ; Γ ⊢ f :_d τ₁ ->_d τ₂
     Δ; Σ; Γ ⊢ e :_d τ₁
     Δ; Σ ⊢ τ₁ : κ
-    Δ ⊢ κ concrete
+    Δ ⊢ κ rep
     --------------------------------------------------- (App-D-D)
     Δ; Σ; Γ ⊢ f e :_d τ₂
 
@@ -176,17 +199,51 @@ There is a subtype relation on kinds.
     fv(κ) ⊆ dom(Δ)
     Δ, ξ <: κ; Σ; Γ ⊢ e : τ
     --------------------------------------------- (KiLam)
-    Δ; Σ; Γ ⊢ FUN (ξ <: κ) -> e : ∀ (ξ <: κ) -> τ
+    Δ; Σ; Γ ⊢ FUN (ξ <: κ) -> e :_ϕ ∀ (ξ <: κ) -> τ
 
     Δ; Σ; Γ ⊢ e : ∀ (ξ <: κ₂) -> τ
     Δ ⊢ κ <: κ₂
     ------------------------------ (KiApp)
-    Δ; Σ; Γ ⊢ e{κ} : τ{κ/ξ}
+    Δ; Σ; Γ ⊢ e{κ} :_ϕ τ{κ/ξ}
 
-    Δ; Σ; Γ ⊢ f :_s τ₁ ->_d τ₂
-    Δ; Σ; Γ ⊢ e :_d τ₁
-    ----------------------------------------------- (Spec)
-    Δ; Σ; Γ ⊢ f · e :_d τ₂
+## Operational semantics
+
+    Δ; Σ ⊢ e₁ ⟶ e₂ ::=
+
+    Δ; Σ ⊢ τ : κ
+    Δ ⊢ κ rep   (* this is the key check! *)
+    ------------------------------------------- (Beta)
+    Δ; Σ ⊢ (fun (x :_ϕ τ) -> e₁) v₂ ⟶ e₁{v₂/x}
+
+    Δ; Σ ⊢ e₁ ⟶ e₁'
+    ----------------------- (App1)
+    Δ; Σ ⊢ e₁ e₂ ⟶ e₁' e₂
+
+    Δ; Σ ⊢ e₂ ⟶ e₂'
+    ----------------------- (App2)
+    Δ; Σ ⊢ v₁ e₂ ⟶ v₁ e₂'
+
+    Δ; Σ, α : κ ⊢ e ⟶ e'
+    --------------------------------------------- (TyAbs)
+    Δ; Σ ⊢ Fun (α : κ) -> e ⟶ Fun (α : κ) -> e'
+
+    --------------------------------------- (TyBeta)
+    Δ; Σ ⊢ (Fun (α : κ) -> v)[τ] ⟶ v{τ/α}
+
+    Δ; Σ ⊢ e ⟶ e'
+    --------------------- (TyApp)
+    Δ; Σ ⊢ e[τ] ⟶ e'[τ]
+
+    Δ, ξ <: κ; Σ ⊢ e ⟶ e'
+    ----------------------------------------------- (KiAbs)
+    Δ; Σ ⊢ FUN (ξ <: κ) -> e ⟶ FUN (ξ <: κ) -> e'
+
+    ------------------------------------------- (KiBeta)
+    Δ; Σ ⊢ (FUN (ξ <: κ₁) -> v){κ₂} ⟶ v{κ₂/ξ}
+
+    Δ; Σ ⊢ e ⟶ e'
+    --------------------- (KiApp)
+    Δ; Σ ⊢ e{κ} ⟶ e'{κ}
 
 ## The static computation operator `⌊-⌋`
 
