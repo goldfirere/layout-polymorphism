@@ -1,9 +1,12 @@
-# System F with staging
+# System F with representation polymorphism
+
+This is meant to be an *internal* language, produced via an elaboration
+step from surface OCaml.
 
     ϕ ::= s | d             Phases
     e, f ::=                Terms
-      | x_ϕ                 Variable with phase
-      | fun (x_ϕ : τ) -> e  Term abstraction
+      | x                   Variable with phase
+      | fun (x :_ϕ τ) -> e  Term abstraction
       | e e                 Normal application
       | e · e               Specialization
       | Fun (α : κ) -> e    Type abstraction
@@ -24,7 +27,7 @@
       | Σ, α : κ            Type variable
     Γ ::=                   Term contexts
       | ∅                   Empty
-      | Γ, x : τ            Term variable
+      | Γ, x :_ϕ τ          Term variable
 
 ## Typing rules for kinds
 
@@ -80,7 +83,7 @@ There is a subtype relation on kinds.
     Σ ⊢ τ₁ : κ₁   κ₁ layout
     Σ ⊢ τ₂ : κ₂   κ₂ layout
     -------------------------- (Arrow)
-       Σ ⊢ τ₁ -> τ₂ : value
+    Σ ⊢ τ₁ ->_ϕ τ₂ : value
 
     Σ, α : κ₁ ⊢ τ : κ₂
     κ₂ layout
@@ -97,21 +100,21 @@ There is a subtype relation on kinds.
     Σ; Γ ⊢ e :_ϕ τ ::=
 
     ------------------------- (Var)
-    Σ; Γ, x_ϕ : τ ⊢ x_ϕ :_ϕ τ
+    Σ; Γ, x_ϕ : τ ⊢ x :_ϕ τ
 
     Σ; Γ ⊢ e :_s τ
     ---------------- (Lift)
     Σ; Γ ⊢ ⌈e⌉ :_d τ
 
     Σ ⊢ τ₁ : κ    κ layout
-    Σ; Γ, x_ϕ : τ₁ ⊢ e :_s τ₂
+    Σ; Γ, x :_ϕ τ₁ ⊢ e :_s τ₂
     ----------------------------------------- (Lam-S)
-    Σ; Γ ⊢ fun (x_ϕ : τ₁) -> e :_s τ₁ ->_ϕ τ₂
+    Σ; Γ ⊢ fun (x :_ϕ τ₁) -> e :_s τ₁ ->_ϕ τ₂
 
     Σ ⊢ τ₁ : κ    κ concrete
-    Σ; Γ, x_ϕ : τ₁ ⊢ e :_d τ₂
+    Σ; Γ, x :_ϕ τ₁ ⊢ e :_d τ₂
     ------------------------------------------- (Lam-D)
-    Σ; Γ ⊢ fun (x_ϕ : τ₁) -> e :_d τ₁ ->_ϕ τ₂
+    Σ; Γ ⊢ fun (x :_ϕ τ₁) -> e :_d τ₁ ->_ϕ τ₂
 
     Σ; Γ ⊢ f :_s τ₁ ->_s τ₂   Σ; Γ ⊢ e :_s τ₁
     ----------------------------------------- (App-S-S)
