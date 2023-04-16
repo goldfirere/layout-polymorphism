@@ -6,6 +6,9 @@ step from surface OCaml.
     x ::= ...               Term variables
     α ::= ...               Type variables
     ξ ::= ...               Kind variables
+    i, j, n ::=             Natural numbers
+      | 0                   Zero
+      | S(n)                Non-zero
     ϕ ::=                   Obligations
       | [n; ξs]             Number of bound variables; set of free variables
     b ::=                   Base values
@@ -19,7 +22,6 @@ step from surface OCaml.
       | e[τ]                Type application
       | FUN (ξ <: κ) -> e   Kind abstraction
       | e{κ}                Kind application
-      | ⌈e⌉                 Specialize
       | b                   Base values
     v ::=                   Values
       | fun (x :_ϕ τ) -> e  Term abstraction
@@ -58,7 +60,22 @@ step from surface OCaml.
       | θ ∘ e/x             Term substitution
 
 All contexts should be viewed as sets and allow arbitrary well-scoped
-permutation.
+permutation. We follow the Barendregt convention throughout, meaning
+that all new local variables are assumed to be distinct from variables
+already in scope; these freshness constraints are omitted from the rules
+and can easily be enforced by renaming.
+
+## Kind contexts
+
+    ⊢ Δ ok ::=
+
+    ------------- (Empty)
+    ⊢ ∅ ok
+
+    ⊢ Δ ok
+    fv(κ) ⊆ dom(Δ)
+    -------------- (KVar)
+    ⊢ Δ, ξ <: κ
 
 ## Typing rules for kinds
 
@@ -68,6 +85,7 @@ permutation.
     -------------------- (Var)
     Δ, ξ <: κ ⊢ ξ layout
 
+    ⊢ Δ ok
     ------------ (Base)
     Δ ⊢ K layout
 
@@ -84,8 +102,9 @@ where checks might be needed in a more elaborate language.
 
     Δ ⊢ κ rep
     ------------------ (Var)
-    Δ, ξ <: κ rep
+    Δ, ξ <: κ ⊢ ξ rep
 
+    ⊢ Δ ok
     -------------- (Concrete)
     Δ ⊢ C rep
 
@@ -99,14 +118,17 @@ There is a subtype relation on kinds.
 
     Δ ⊢ κ₁ <: κ₂ ::=
 
+    ⊢ Δ, ξ <: κ ok
     ------------------ (Var)
     Δ, ξ <: κ ⊢ ξ <: κ
 
     fv(κ) ⊆ dom(Δ)
+    ⊢ Δ ok
     -------------- (Any)
     Δ ⊢ κ <: any
 
     fv(κ) ⊆ dom(Δ)
+    ⊢ Δ ok
     -------------- (Refl)
     Δ ⊢ κ <: κ
 
@@ -114,6 +136,19 @@ There is a subtype relation on kinds.
     Δ ⊢ κ₂ <: κ₃
     ------------ (Trans)
     Δ ⊢ κ₁ <: κ₃
+
+## Type contexts
+
+    Δ ⊢ Σ ok ::=
+
+    ⊢ Δ ok
+    -------- (Empty)
+    Δ ⊢ ∅ ok
+
+    Δ ⊢ Σ ok
+    fv(κ) ⊆ Δ
+    --------------- (TyVar)
+    Δ ⊢ Σ, α : κ ok
 
 ## Base types
 
@@ -123,10 +158,12 @@ There is a subtype relation on kinds.
 
     Δ; Σ ⊢ τ : κ ::=
 
+    Δ ⊢ Σ, α : κ ok
     ------------------- (TyVar)
     Δ; Σ, α : κ ⊢ α : κ
 
     B : C
+    Δ ⊢ Σ ok
     ------------ (Base)
     Δ; Σ ⊢ B : C
 
@@ -167,6 +204,21 @@ kinds here are so simple. So we can simplify this to
 
 which is more clearly decidable.
 
+## Term contexts
+
+    Δ; Σ ⊢ Γ ok ::=
+
+    Δ ⊢ Σ ok
+    ----------- (Empty)
+    Δ; Σ ⊢ ∅ ok
+
+    Δ; Σ ⊢ τ : κ
+    Δ; Σ ⊢ Γ ok
+    ξs ⊆ dom(Δ)
+    τ is headed by n kind quantifications
+    -------------------------- (TermVar)
+    Δ; Σ ⊢ Γ, x :_[n, ξs] τ ok
+
 ## Base values
 
     b : B ::= ...
@@ -175,26 +227,18 @@ which is more clearly decidable.
 
     Δ; Σ; Γ ⊢ e :_ϕ τ ::=
 
+    Δ; Σ ⊢ Γ, x :_ϕ τ ok
     ------------------------------ (Var)
     Δ; Σ; Γ, x :_ϕ τ ⊢ x :_ϕ τ
 
     b : B
+    Δ; Σ ⊢ Γ ok
     --------------- (Base)
     Δ; Σ; Γ ⊢ b : B
 
-    Δ, ξ₁ <: κ₁', ⋯, ξⱼ <: κⱼ'; Σ; Γ ⊢ e :_(ϕ, ξ₁, ⋯, ξⱼ) τ
-    θ₀ = ∅
-    ∀ i s.t. 1 ≤ i ≤ j:
-      fv(κᵢ') ⊆ (dom(Δ) ∪ {ξ₁, ⋯, ξᵢ₋₁})
-      θᵢ = κᵢ/ξᵢ ∘ θᵢ₋₁
-      Δ ⊢ κᵢ <: κᵢ'{θᵢ₋₁}
-      Δ ⊢ κᵢ rep
-    --------------------------------------------------------------------- (Spec)
-    Δ; Σ; Γ ⊢ ⌈(FUN (ξ₁ <: κ₁') ⋯ (ξⱼ <: κⱼ') -> e){κ₁}{⋯}{κⱼ}⌉ :_ϕ τ{θⱼ}
-
-    Δ; Σ; Γ ⊢ e :_ϕ τ
-    ----------------------- (Sub)
-    Δ; Σ; Γ ⊢ e :_(ϕ, ϕ') τ
+    Δ; Σ; Γ ⊢ e :_[n, ξs] τ
+    ----------------------------- (Sub)
+    Δ; Σ; Γ ⊢ e :_[n, ξs ∪ ξs'] τ
 
     Δ; Σ ⊢ τ₁ : κ
     Δ ⊢ κ layout
@@ -220,15 +264,29 @@ which is more clearly decidable.
     ----------------------------------------------- (TyApp)
     Δ; Σ; Γ ⊢ f[τ₁] :_ϕ τ₂{τ₁/α}
 
+    ϕ = [0; ξs]
     fv(κ) ⊆ dom(Δ)
     Δ, ξ <: κ; Σ; Γ ⊢ e :_ϕ τ
     --------------------------------------------- (KiLam)
     Δ; Σ; Γ ⊢ FUN (ξ <: κ) -> e :_ϕ ∀ (ξ <: κ) -> τ
 
+    ϕ = [S(n); ξs]
+    fv(κ) ⊆ dom(Δ)
+    Δ, ξ <: κ; Σ; Γ ⊢ e :_[n; ξs ∪ {ξ}] τ
+    --------------------------------------------- (KiLamRep)
+    Δ; Σ; Γ ⊢ FUN (ξ <: κ) -> e :_ϕ ∀ (ξ <: κ) -> τ
+
+    ϕ = [0; ξs]
     Δ; Σ; Γ ⊢ e :_ϕ ∀ (ξ <: κ₂) -> τ
     Δ ⊢ κ <: κ₂
     ------------------------------ (KiApp)
     Δ; Σ; Γ ⊢ e{κ} :_ϕ τ{κ/ξ}
+
+    Δ; Σ; Γ ⊢ e :_[S(n); ξs] ∀ (ξ <: κ₂) -> τ
+    Δ ⊢ κ <: κ₂
+    Δ ⊢ κ rep
+    ------------------------------ (KiAppRep)
+    Δ; Σ; Γ ⊢ e{κ} :_[n; ξs] τ{κ/ξ}
 
 ## Operational semantics
 
@@ -272,6 +330,20 @@ which is more clearly decidable.
     --------------------- (KiApp)
     Δ; Σ ⊢ e{κ} ⟶ e'{κ}
 
+## Basic properties
+
+### Lemma (Regularity). (lem:reg)
+
+1. If `⊢ Δ ok`, then `fv(Δ) = ∅`.
+1. If `Δ ⊢ κ layout`, then `⊢ Δ ok` and `fv(κ) ⊆ dom(Δ)`.
+1. If `Δ ⊢ κ rep`, then `Δ ⊢ κ layout`.
+1. If `Δ ⊢ κ₁ <: κ₂`, then `⊢ Δ ok`, `fv(κ₁) ⊆ dom(Δ)`, and `fv(κ₂) ⊆ dom(Δ)`.
+1. If `Δ ⊢ Σ ok`, then `⊢ Δ ok` and `fv(Σ) = ∅`.
+1. If `Δ; Σ ⊢ τ : κ`, then `Δ ⊢ Σ ok`, `fv(τ) ⊆ (dom(Δ) ∪ dom(Σ))`, and `fv(κ) ⊆ dom(Δ)`.
+1. If `Δ; Σ ⊢ Γ ok`, then `Δ ⊢ Σ ok` and `fv(Γ) = ∅`.
+1. If `Δ; Σ; Γ ⊢ e :_[n; ξs] τ`, then `Δ; Σ ⊢ Γ ok`, `fv(e) ⊆ (dom(Δ) ∪ dom(Σ) ∪ dom(Γ))`,
+    `Δ; Σ ⊢ τ : κ`, `Δ ⊢ κ layout`, `τ is headed by n kind quantification`, and `ξs ⊆ dom(Δ)`.
+
 ## Type safety
 
 ### Theorem (Preservation). (thm:pres)
@@ -285,13 +357,43 @@ By induction on the reduction relation.
 Case (Spec).
 
     Δ; Σ ⊢ ⌈e⌉ ⟶ e                                            Given
-    Typing rule (Spec) applies      		                only possibility
-    e = FUN (ξ₁ <: κ₁') ⋯ (ξⱼ <: κⱼ') -> e'){κ₁}{⋯}{κⱼ}         Conclusion of (Spec)
-    Δ, ξ₁ <: κ₁', ⋯, ξⱼ <: κⱼ'; Σ; Γ ⊢ e' :_(ϕ, ξ₁, ⋯, ξⱼ) τ₀   Premise of (Spec)
+    Let ϕ = [n; ξs].                                            only possibility
+    Typing rule (Spec) applies, possibly after some (Sub)s      only possibility
+    Let ϕ' = [n; ξs'], where ξs' ⊆ ξs                           premise of (Sub)
+    e = e'{κ₁}{⋯}{κⱼ}                                           Conclusion of (Spec)
+    Δ; Σ; Γ ⊢ e' :_[n + j; ξs') ∀ (ξ₁ <: κ₁') ⋯ (ξⱼ <: κⱼ') -> τ₀   Premise of (Spec)
     θ₀ = ∅                                                      Premise of (Spec)
     ∀ i s.t. 1 ≤ i ≤ j:
       θᵢ = κᵢ/ξᵢ ∘ θᵢ₋₁
       Δ ⊢ κᵢ <: κᵢ'{θᵢ₋₁}
       Δ ⊢ κᵢ rep
     τ = τ₀{θⱼ}                                                  Conclusion of (Spec)
-    Δ; Σ; Γ ⊢ e :_(ϕ, ξ₁, ⋯, ξⱼ) τ                              Straightforward use of typing rules
+    WTP: Δ; Σ; Γ ⊢ e'{κ₁}{⋯}{κⱼ} :_[n; ξs] τ                    Substitution
+    WTP: Δ; Σ; Γ ⊢ e'{κ₁}{⋯}{κⱼ} :_[n; ξs'] τ                   (Sub)
+
+## Examples
+
+Let's not do this:
+
+fun (x :_∅ ∀ (ξ <: any) (α : ξ). α -> α) -> x 3, x 3#
+
+
+x : ∀ (ξ <: any) (α : ξ). α -> unit ⊢ x 3, x 3# ...
+∅ ⊢ value rep (...)
+∅ ⊢ ∀ (ξ <: any) (α : ξ). α -> unit : value (Arrow)
+∅ ⊢ value layout (...)
+-------------------------------------------------------------- (Lam)
+∅ ⊢ fun (x :_∅ ∀ (ξ <: any) (α : ξ). α -> unit) -> x 3, x 3# :
+  (∀ (ξ <: any) (α : ξ). α -> unit) ->_∅ unit * unit
+
+Actually, this is fine, because degenerate such xs do exist. The problem will be calling this function.
+
+Let that be f.
+
+
+∅ ⊢ fun (ξ <: any) (α : ξ) (x : α) -> () :_∅ ∀ (ξ <: any) (α : ξ). α -> unit
+∅ ⊢ f :_∅ (∀ (ξ <: any) (α : ξ). α -> unit) -> unit * unit
+∅ ⊢ ∀ (ξ <: any) (α : ξ). α -> unit : value
+∅ ⊢ value rep
+------------------------------------------------------------- (App)
+∅ ⊢ f (fun (ξ <: any) (α : ξ) (x : α) -> ()) :_∅ unit * unit
