@@ -22,6 +22,8 @@ step from surface OCaml.
       | e[τ]                Type application
       | FUN (ξ <: κ) -> e   Kind abstraction
       | e{κ}                Kind application
+      | let x = e in e      Local variable
+      | ⌈e⌉                 Specialize
       | b                   Base values
     v ::=                   Values
       | fun (x :_ϕ τ) -> e  Term abstraction
@@ -52,7 +54,8 @@ step from surface OCaml.
       | Σ, α : κ            Type variable
     Γ ::=                   Term contexts
       | ∅                   Empty
-      | Γ, x :_ϕ τ          Term variable
+      | Γ, x :_ϕ τ          Lambda-bound variable
+      | Γ, x :_[ϕ;n] τ      Let-bound variable
     θ ::=                   Substitutions
       | ∅                   Empty
       | θ ∘ κ/ξ             Kind substitution
@@ -236,6 +239,16 @@ which is more clearly decidable.
     --------------- (Base)
     Δ; Σ; Γ ⊢ b : B
 
+    Δ, ξ₁ <: κ₁', ⋯, ξⱼ <: κⱼ'; Σ; Γ ⊢ e :_(ϕ, ξ₁, ⋯, ξⱼ) τ
+    θ₀ = ∅
+    ∀ i s.t. 1 ≤ i ≤ j:
+      fv(κᵢ') ⊆ (dom(Δ) ∪ {ξ₁, ⋯, ξᵢ₋₁})
+      θᵢ = κᵢ/ξᵢ ∘ θᵢ₋₁
+      Δ ⊢ κᵢ <: κᵢ'{θᵢ₋₁}
+      Δ ⊢ κᵢ rep
+    --------------------------------------------------------------------- (Spec)
+    Δ; Σ; Γ ⊢ ⌈(FUN (ξ₁ <: κ₁') ⋯ (ξⱼ <: κⱼ') -> e){κ₁}{⋯}{κⱼ}⌉ :_ϕ τ{θⱼ}
+
     Δ; Σ; Γ ⊢ e :_[n, ξs] τ
     ----------------------------- (Sub)
     Δ; Σ; Γ ⊢ e :_[n, ξs ∪ ξs'] τ
@@ -270,30 +283,24 @@ which is more clearly decidable.
     --------------------------------------------- (KiLam)
     Δ; Σ; Γ ⊢ FUN (ξ <: κ) -> e :_ϕ ∀ (ξ <: κ) -> τ
 
-    ϕ = [S(n); ξs]
-    fv(κ) ⊆ dom(Δ)
-    Δ, ξ <: κ; Σ; Γ ⊢ e :_[n; ξs ∪ {ξ}] τ
-    --------------------------------------------- (KiLamRep)
-    Δ; Σ; Γ ⊢ FUN (ξ <: κ) -> e :_ϕ ∀ (ξ <: κ) -> τ
-
     ϕ = [0; ξs]
     Δ; Σ; Γ ⊢ e :_ϕ ∀ (ξ <: κ₂) -> τ
     Δ ⊢ κ <: κ₂
     ------------------------------ (KiApp)
     Δ; Σ; Γ ⊢ e{κ} :_ϕ τ{κ/ξ}
 
-    Δ; Σ; Γ ⊢ e :_[S(n); ξs] ∀ (ξ <: κ₂) -> τ
-    Δ ⊢ κ <: κ₂
-    Δ ⊢ κ rep
-    ------------------------------ (KiAppRep)
-    Δ; Σ; Γ ⊢ e{κ} :_[n; ξs] τ{κ/ξ}
+    j ≥ 0
+    Δ; Σ; Γ ⊢ FUN (ξ₁ <: κ₁) ⋯ (ξⱼ <: κⱼ) -> e₁ :_ϕ' τ₁
+    Δ; Σ; Γ, x :_[ϕ';j] τ₁ ⊢ e₂ : τ₂
+    --------------------------------- (Let)
+    Δ; Σ; Γ ⊢ let x = FUN (ξ₁ <: κ₁) ⋯ (ξⱼ <: κⱼ) -> e₁ in e₂ :_ϕ τ₂
 
 ## Operational semantics
 
     Δ; Σ ⊢ e₁ ⟶ e₂ ::=
 
-    ---------------- (Spec)
-    Δ; Σ ⊢ ⌈e⌉ ⟶ e
+    ------------------------------------------------------------------------------- (Spec)
+    Δ; Σ ⊢ ⌈(FUN (ξ₁ <: κ₁') ⋯ (ξⱼ <: κⱼ') -> e){κ₁}{⋯}{κⱼ}⌉ ⟶ e{κ₁/ξ₁}{⋯}{κⱼ/ξⱼ}
 
     Δ; Σ ⊢ τ : κ
     Δ ⊢ κ rep   (* this is the key check! *)
@@ -371,29 +378,40 @@ Case (Spec).
     WTP: Δ; Σ; Γ ⊢ e'{κ₁}{⋯}{κⱼ} :_[n; ξs] τ                    Substitution
     WTP: Δ; Σ; Γ ⊢ e'{κ₁}{⋯}{κⱼ} :_[n; ξs'] τ                   (Sub)
 
-## Examples
+# Talk outline
 
-Let's not do this:
+Setting:
+  - unboxed types, including #{ ... } syntax
+  - arrays interface
+  - we need layout flexibility
+  - red herring: we don't need full layout polymorphism, because we don't
+    generally use the same layout variable twice.
+Challenge: we can't compile layout flexibility efficiently
+  (we can pretty easily do it inefficiently!)
+Solution: specialization.
+  - but this means we have to have the function body around during compilation
+  - even though we need to continue to support separate compilation.
+  - this isn't so bad, actually: we just notate in a cmi file that the actual function can be found
+    somewhere else (specifically: cmx files) (PS: this is not planned for the bytecode compiler, where
+    there will be no unboxing)
+Challenge: we need to know in advance that inlining is even possible
+Solution: prenex polymorphism, which must be instantiated immediately (with concrete layouts) at usage sites
+  - this is interesting: our source language has no polymorphism, just subtyping. But we need
+    polymorphism to track this feature in an intermediate language.
+  - how do we know this is right? We can compile the intermediate language to the L language
+    of the levity-polymorphism paper.
+Challenge: modules
+Solution: prenex polymorphism.
+  - that is, a module is just a runtime structure. Like other runtime structures, it must
+    have any layout polymorphism in prenex position -- **at top level**.
+  - usage sites will have to specialize the modules, but this can be transparent to the user.
+  - We'll also allow for abstract layouts in module types that can be specialized with `with` --
+    that's no problem and is largely orthogonal to the rest of this.
+Seems easy in retrospect, but we've been thinking about this problem for a while and it only
+came to me when making this presentation!
 
-fun (x :_∅ ∀ (ξ <: any) (α : ξ). α -> α) -> x 3, x 3#
-
-
-x : ∀ (ξ <: any) (α : ξ). α -> unit ⊢ x 3, x 3# ...
-∅ ⊢ value rep (...)
-∅ ⊢ ∀ (ξ <: any) (α : ξ). α -> unit : value (Arrow)
-∅ ⊢ value layout (...)
--------------------------------------------------------------- (Lam)
-∅ ⊢ fun (x :_∅ ∀ (ξ <: any) (α : ξ). α -> unit) -> x 3, x 3# :
-  (∀ (ξ <: any) (α : ξ). α -> unit) ->_∅ unit * unit
-
-Actually, this is fine, because degenerate such xs do exist. The problem will be calling this function.
-
-Let that be f.
-
-
-∅ ⊢ fun (ξ <: any) (α : ξ) (x : α) -> () :_∅ ∀ (ξ <: any) (α : ξ). α -> unit
-∅ ⊢ f :_∅ (∀ (ξ <: any) (α : ξ). α -> unit) -> unit * unit
-∅ ⊢ ∀ (ξ <: any) (α : ξ). α -> unit : value
-∅ ⊢ value rep
-------------------------------------------------------------- (App)
-∅ ⊢ f (fun (ξ <: any) (α : ξ) (x : α) -> ()) :_∅ unit * unit
+If time: demo actual features that exist:
+  - include functor
+  - local
+  - comprehensions
+  - immutable arrays
