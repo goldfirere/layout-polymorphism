@@ -11,230 +11,238 @@ defn
     DD |- k ok :: :: kwf :: 'K_'
 by
 
-    fv(k) (= dom(DD)
-    -------------- :: Scoped
-    DD |- k ok
+fv(k) (= dom(DD)
+-------------- :: Scoped
+DD |- k ok
 
 defn
     |- DD ok :: :: kctx :: 'Kctx_'
 by
 
-    ------------- :: Empty
-    |- empty ok
+------------- :: Empty
+|- empty ok
 
-    |- DD ok
-    -------------- :: Var
-    |- DD, X ok
+|- DD ok
+-------------- :: Var
+|- DD, X ok
 
 defn
     DD |- k layout :: :: lay :: 'Layout_'
 by
 
-    |- DD ok
-    -------------------- :: Var
-    DD, X |- X layout
+|- DD ok
+-------------------- :: Var
+DD, X |- X layout
 
-    |- DD ok
-    ------------ :: Base
-    DD |- K layout
+|- DD ok
+------------ :: Base
+DD |- K layout
 
 defn
     DD |- k rep :: :: rep :: 'Rep_'
 by
 
-    |- DD ok
-    ------------------ :: Var
-    DD, X |- X rep
+|- DD ok
+------------------ :: Var
+DD, X |- X rep
 
-    |- DD ok
-    -------------- :: Base
-    DD |- R rep
+|- DD ok
+-------------- :: Base
+DD |- R rep
 
 defn
     DD |- k1 <: k2 :: :: ksub :: 'KSub_'
 by
 
-    |- DD ok
-    DD |- k ok
-    -------------- :: Any
-    DD |- k <: any
+|- DD ok
+DD |- k ok
+-------------- :: Any
+DD |- k <: any
 
-    |- DD ok
-    DD |- k ok
-    -------------- :: Refl
-    DD |- k <: k
+|- DD ok
+DD |- k ok
+-------------- :: Refl
+DD |- k <: k
 
-    DD |- k1 <: k2
-    DD |- k2 <: k3
-    ------------ :: Trans
-    DD |- k1 <: k3
+DD |- k1 <: k2
+DD |- k2 <: k3
+------------ :: Trans
+DD |- k1 <: k3
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Types  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 defn
     DD |- SS ok :: :: tctx :: 'Tctx_'
 by
 
-    |- DD ok
-    -------- :: Empty
-    DD |- empty ok
+|- DD ok
+-------- :: Empty
+DD |- empty ok
 
-    DD |- SS ok
-    DD |- k ok
-    --------------- :: TyVar
-    DD |- SS, a : k ok
+DD |- SS ok
+DD |- k ok
+--------------- :: TyVar
+DD |- SS, a : k ok
 
 defn
     B : R :: :: tbase :: 'TBase_'
 by
 
-    ------------ :: Bool
-    bool : value
+------------ :: Bool
+bool : value
 
 defn
     DD ; SS |- t : k :: :: twf :: 'T_'
 by
 
-    DD |- SS, a : k ok
-    ------------------- :: TyVar
-    DD; SS, a : k |- a : k
+DD |- SS, a : k ok
+------------------- :: TyVar
+DD; SS, a : k |- a : k
 
-    B : R
-    DD |- SS ok
-    ------------ :: Base
-    DD; SS |- B : R
+B : R
+DD |- SS ok
+------------ :: Base
+DD; SS |- B : R
 
-    DD; SS |- t1 : k1
-    DD |- k1 layout
-    DD; SS |- t2 : k2
-    DD |- k2 layout
-    ------------------------------ :: Arrow
-    DD; SS |- t1 ->_m t2 : value
+DD; SS |- t1 : k1
+DD |- k1 layout
+DD; SS |- t2 : k2
+DD |- k2 layout
+------------------------------ :: Arrow
+DD; SS |- t1 ->_m t2 : value
 
-    DD |- k1 ok
-    DD; SS, a : k1 |- t : k2
-    DD |- k2 layout
-    -------------------------- :: ForAll
-    DD; SS |- all (a : k1) -> t : k2
+DD |- k1 ok
+DD; SS, a : k1 |- t : k2
+DD |- k2 layout
+-------------------------- :: ForAll
+DD; SS |- all (a : k1) -> t : k2
 
-    all i s.t. 1 <= i <= j: DD; SS |-s si : ki \\ DD |- ki layout
-    -------------------------------------- :: Record
-    DD; SS |- { x1 : s1; dots; xj : sj } : value
+all i s.t. 1 <= i <= j: DD; SS |-s si : ki \\ DD |- ki layout
+-------------------------------------- :: Record
+DD; SS |- { x1 : s1; dots; xj : sj } : value
 
-    DD; SS |- t : k1
-    DD |- k1 <: k2
-    ------------- :: Sub
-    DD; SS |- t : k2
+DD; SS |- t : k1
+DD |- k1 <: k2
+------------- :: Sub
+DD; SS |- t : k2
 
 defn
     DD ; SS |-s s : k :: :: swf :: 'S_'
 by
 
-    DD; SS |- t : k
-    ------------- :: Regular
-    DD; SS |-s t : k
+DD; SS |- t : k
+------------- :: Regular
+DD; SS |-s t : k
 
-    DD, X; SS |-s s : k
-    DD |- k layout
-    ------------------------------ :: KForAll
-    DD; SS |-s all X => s : k
+DD, X; SS |-s s : k
+DD |- k layout
+------------------------------ :: KForAll
+DD; SS |-s all X => s : k
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Terms  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 defn
     DD ; SS |- GG ok :: :: ctx :: 'Ctx_'
 by
 
-    DD |- SS ok
-    ------------ :: Empty
-    DD; SS |- empty ok
+DD |- SS ok
+------------ :: Empty
+DD; SS |- empty ok
 
-    DD; SS |-s s : k
-    DD |- k rep
-    DD; SS |- GG ok
-    -------------------------- :: Var
-    DD; SS |- GG, x :_m s ok
+DD; SS |-s s : k
+DD |- k rep
+DD; SS |- GG ok
+-------------------------- :: Var
+DD; SS |- GG, x :_m s ok
 
 defn
     m1 <= m2 :: :: msub :: 'MSub_'
 by
 
-    ----- :: Refl
-    m <= m
+----- :: Refl
+m <= m
 
-    ----- :: Waiting
-    S <= D
+----- :: Waiting
+S <= D
 
 defn
     b : B :: :: base :: 'Base_'
 by
 
-    ----------- :: True
-    true : bool
+----------- :: True
+true : bool
 
-    ------------ :: False
-    false : bool
+------------ :: False
+false : bool
 
 defn
     DD ; SS ; GG |- e :_ m s :: :: ewf :: 'E_'
     {{ tex [[DD]]; [[SS]]; [[GG]] [[|-]] [[e]] :_{[[m]]} [[s]] }}
 by
 
-    DD; SS |- GG, x :_m1 s ok
-    m1 <= m2
-    ------------------------------ :: Var
-    DD; SS; GG, x :_m1 s |- x :_m2 s
+DD; SS |- GG, x :_m1 s ok
+m1 <= m2
+------------------------------ :: Var
+DD; SS; GG, x :_m1 s |- x :_m2 s
 
-    b : B
-    DD; SS |- GG ok
-    ----------------- :: Base
-    DD; SS; GG |- b :_m B
+b : B
+DD; SS |- GG ok
+----------------- :: Base
+DD; SS; GG |- b :_m B
 
-    DD; SS |- t1 : k
-    DD |- k rep
-    DD; SS; GG, x :_m1 t1 |- e :_m3 t2
-    m2 <= m1 <= m3
-    ---------------------------------------------- :: Lam
-    DD; SS; GG |- fun (x : t1) ->_m1 e :_m2 t1 ->_m1 t2
+DD; SS |- t1 : k
+DD |- k rep
+DD; SS; GG, x :_m1 t1 |- e :_m3 t2
+m2 <= m1 <= m3
+---------------------------------------------- :: Lam
+DD; SS; GG |- fun (x : t1) ->_m1 e :_m2 t1 ->_m1 t2
 
-    DD; SS; GG |- e1 :_m1 t1 ->_m2 t2
-    DD; SS; GG |- e2 :_m1 t1
-    DD; SS |- t1 : k1
-    DD |- k1 rep
-    m2 <= m1
-    ----------------------------------------- :: App
-    DD; SS; GG |- e1 e2 :_m1 t2
+DD; SS; GG |- e1 :_m1 t1 ->_m2 t2
+DD; SS; GG |- e2 :_m1 t1
+DD; SS |- t1 : k1
+DD |- k1 rep
+m2 <= m1
+----------------------------------------- :: App
+DD; SS; GG |- e1 e2 :_m1 t2
 
-    DD |- k ok
-    DD; SS, a : k; GG |- e :_m t
-    --------------------------------------------- :: TyLam
-    DD; SS; GG |- Fun (a : k) -> e :_m all (a : k) -> t
+DD |- k ok
+DD; SS, a : k; GG |- e :_m t
+--------------------------------------------- :: TyLam
+DD; SS; GG |- Fun (a : k) -> e :_m all (a : k) -> t
 
-    DD; SS; GG |- e :_m all (a : k) -> t2
-    DD; SS |- t1 : k
-    ----------------------------------------------- :: TyApp
-    DD; SS; GG |- e[t1] :_m t2{t1/a}
+DD; SS; GG |- e :_m all (a : k) -> t2
+DD; SS |- t1 : k
+----------------------------------------------- :: TyApp
+DD; SS; GG |- e[t1] :_m t2{t1/a}
 
-    DD, X; SS; GG |- e :_m s
-    --------------------------------------------- :: KiLam
-    DD; SS; GG |- FUN X => e :_m all X => s
+DD, X; SS; GG |- e :_m s
+--------------------------------------------- :: KiLam
+DD; SS; GG |- FUN X => e :_m all X => s
 
-    DD; SS; GG |- e :_S all X => t
-    DD |- k rep
-    ------------------------------ :: KiApp
-    DD; SS; GG |- e{k} :_m t{k/X}
+DD; SS; GG |- e :_S all X => t
+DD |- k rep
+------------------------------ :: KiApp
+DD; SS; GG |- e{k} :_m t{k/X}
 
-    DD; SS; GG |- e1 :_m s1
-    DD; SS; GG, x :_m s1 |- e2 :_m t2
-    --------------------------------- :: Let
-    DD; SS; GG |- let x = e1 in e2 :_m t2
+DD; SS; GG |- e1 :_m s1
+DD; SS; GG, x :_m s1 |- e2 :_m t2
+--------------------------------- :: Let
+DD; SS; GG |- let x = e1 in e2 :_m t2
 
-    all i s.t. 1 <= i <= j: DD; SS; GG |- ei :_m si \\ DD; SS |-s si : ki \\ DD |- ki rep
-    --------------------------------------------------------------------- :: Construct
-    DD; SS; GG |- { x1 = e1; dots; xj = ej } :_m { x1 : s1; dots; xj : sj }
+all i s.t. 1 <= i <= j: DD; SS; GG |- ei :_m si \\ DD; SS |-s si : ki \\ DD |- ki rep
+--------------------------------------------------------------------- :: Construct
+DD; SS; GG |- { x1 = e1; dots; xj = ej } :_m { x1 : s1; dots; xj : sj }
 
-    DD; SS; GG |- e :_m { x : s; dots }
-    ----------------------- :: Project
-    DD; SS; GG |- e.x :_m s
+DD; SS; GG |- e :_m { x : s; dots }
+----------------------- :: Project
+DD; SS; GG |- e.x :_m s
 
-    DD; SS; GG |- e1 :_D bool
-    DD; SS; GG |- e2 :_D t
-    DD; SS; GG |- e3 :_D t
-    ------------------------------------- :: If
-    DD; SS; GG |- if e1 then e2 else e3 :_D t
+DD; SS; GG |- e1 :_D bool
+DD; SS; GG |- e2 :_D t
+DD; SS; GG |- e3 :_D t
+------------------------------------- :: If
+DD; SS; GG |- if e1 then e2 else e3 :_D t
