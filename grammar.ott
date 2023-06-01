@@ -43,10 +43,10 @@ k {{ tex \kappa }} :: 'kind_' ::= {{ com Kinds }}
 B :: 'base_type_' ::= {{ com Base type }}
   | bool     ::   :: bool {{ com bool }}
 
-t :: 'type_' ::= {{ com Type }}
+t {{ tex \tau }} :: 'type_' ::= {{ com Type }}
   | a                   :: :: var    {{ com Type variable }}
-  | t1 ->_ m t2         :: :: arrow  {{ com Function }}
-    {{ tex [[t1]] \to_{[[m]]} [[t2]] }}
+  | t1 m1 _->_ m2 t2    :: :: arrow  {{ com Function }}
+    {{ tex [[t1]] \mathrel{ {}_{[[m1]]}{\to}_{[[m2]]} } [[t2]] }}
   | all ( a : k ) -> t  :: :: forall {{ com Polymorphic function }}
   | { field_types }     :: :: record {{ com Record type (unordered) }}
   | B                   :: :: base   {{ com Base types }}
@@ -74,8 +74,8 @@ b :: 'base_value_' ::= {{ com Base value }}
 
 e,v :: 'term_' ::= {{ com Term }}
   | x                        :: :: var     {{ com Variable }}
-  | 'fun' ( x : t ) ->_ m e  :: :: func    {{ com Term abstraction }}
-    {{ tex \ottkw{fun}\ ([[x]] : [[t]] ) \to_{[[m]]} [[e]] }}
+  | 'fun' ( x :_ m1 t ) ->_ m2 e  :: :: func    {{ com Term abstraction }}
+    {{ tex \ottkw{fun}\ ([[x]] :_{[[m1]]} [[t]] ) \to_{[[m2]]} [[e]] }}
   | e1 e2                    :: :: app     {{ com Normal application }}
   | Fun ( a : k ) -> e       :: :: tfunc   {{ com Type abstraction }}
   | e [ t ]                  :: :: tapp    {{ com Type application }}

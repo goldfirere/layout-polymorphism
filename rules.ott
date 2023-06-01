@@ -111,7 +111,7 @@ DD |- k1 layout
 DD; SS |- t2 : k2
 DD |- k2 layout
 ------------------------------ :: Arrow
-DD; SS |- t1 ->_m t2 : value
+DD; SS |- t1 m1_->_m2 t2 : value
 
 DD |- k1 ok
 DD; SS, a : k1 |- t : k2
@@ -196,16 +196,16 @@ DD; SS; GG |- b :_m B
 
 DD; SS |- t1 : k
 DD |- k rep
-DD; SS; GG, x :_m1 t1 |- e :_m3 t2
-m2 <= m1 <= m3
+DD; SS; GG, x :_m2 t1 |- e :_m3 t2
 ---------------------------------------------- :: Lam
-DD; SS; GG |- fun (x : t1) ->_m1 e :_m2 t1 ->_m1 t2
+DD; SS; GG |- fun (x :_m2 t1) ->_m3 e :_m1 t1 m2_->_m3 t2
 
-DD; SS; GG |- e1 :_m1 t1 ->_m2 t2
-DD; SS; GG |- e2 :_m1 t1
+DD; SS; GG |- e1 :_m1 t1 m2_->_m3 t2
+DD; SS; GG |- e2 :_m2 t1
 DD; SS |- t1 : k1
 DD |- k1 rep
 m2 <= m1
+m3 <= m1
 ----------------------------------------- :: App
 DD; SS; GG |- e1 e2 :_m1 t2
 
