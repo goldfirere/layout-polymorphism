@@ -1,8 +1,8 @@
-OTT_FILES = grammar.ott
+OTT_FILES = grammar.ott rules.ott
 OTT_OPTS = -tex_show_meta false -tex_wrap false -picky_multiple_parses false
 OTT_TEX = ott.tex
 
-PAPER = layout-poly
+PAPER = at-work
 
 all: $(PAPER).pdf
 

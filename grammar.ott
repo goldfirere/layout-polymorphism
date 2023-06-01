@@ -32,7 +32,7 @@ R :: 'base_rep_' ::= {{ com Representable base kinds }}
   | value               :: :: value {{ com Value kind }}
   | float64             :: :: float64 {{ com 64-bit floats }}
 
-k :: 'kind_' ::= {{ com Kinds }}
+k {{ tex \kappa }} :: 'kind_' ::= {{ com Kinds }}
   | X                   :: :: var {{ com Kind variable }}
   | K                   :: :: base {{ com Base kind }}
 
@@ -51,6 +51,8 @@ t :: 'type_' ::= {{ com Type }}
   | { field_types }     :: :: record {{ com Record type (unordered) }}
   | B                   :: :: base   {{ com Base types }}
 
+  | t { subst }         :: :: subst  {{ com Subst }}
+
 s {{ tex \sigma }} :: 'type_scheme_' ::= {{ com Type schemes }}
   | t                   :: :: mono {{ com Non-templated type }}
   | all X => s          :: :: poly {{ com Templated kind polymorphism }}
@@ -61,6 +63,7 @@ field_types {{ tex \overline{\ottmv{x} : \sigma} }} :: 'field_types_' ::=
 
 field_type :: 'field_type_' ::=
   | x : s              :: :: type
+  | dots               :: :: ellipsis
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%  Terms  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -90,6 +93,15 @@ field_assns {{ tex \overline{\ottmv{x} = \ottnt{e} } }}
 
 field_assn :: 'field_assn_' ::= {{ com Field assignment }}
   | x = e      :: :: Assign {{ com Assign }}
+  | dots       :: :: Ellipsis
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Substitutions  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+subst {{ tex \theta }} :: 'subst_' ::= {{ com Substitution }}
+  | k / X           :: :: kind
+  | t / a           :: :: type
+  | e / x           :: :: term
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%  Contexts  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -117,6 +129,17 @@ term_binding :: 'bnd_' ::=
     {{ tex [[x]] { {:}_{[[m]]} } [[s]] }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Utility  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+varset :: 'varset_' ::=
+  | fv ( k )         :: M :: fv_kind
+  | dom ( DD )       :: M :: dom_kctx
+
+N :: 'nat_' ::=
+  | 1                :: :: one
+  | i                :: :: index
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%  Terminals  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -125,3 +148,31 @@ terminals :: 'terminals_' ::=
   | =>                :: :: Arrow {{ tex \Rightarrow }}
   | all               :: :: all   {{ tex \forall }}
   | 'fun'             :: :: func  {{ tex \ottkw{fun} }}
+  | |-                :: :: entl  {{ tex \vdash }}
+  | (=                :: :: subeq {{ tex \subseteq }}
+  | dots              :: :: ellipses {{ tex \ldots }}
+  | '<='              :: :: le    {{ tex \le }}
+  | \\                :: :: newl  {{ tex \\ }}
+  | |-s               :: :: entls {{ tex \vdash^{\mathsf{s} } }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Formulae  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+formula :: formula_ ::=
+| judgement                    ::   :: judgement
+| formula1 \\ .... \\ formulaj ::   :: dots
+| varset1 (= varset2           ::   :: subset
+| all i s.t. formula0 : formula ::   :: forall
+  {{ tex \begin{array}{@{}l} \multicolumn{1}{@{}l}{\forall [[i]]\ \text{s.t.}\ [[formula0]]:} \\ \quad [[formula]] \end{array} }}
+| N1 <= N2 <= N3               ::   :: le_le
+| m1 <= m2 <= m3               ::   :: m_le_le
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Parsing  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+parsing
+
+formula_forall <= formula_dots
+
