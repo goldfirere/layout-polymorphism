@@ -8,36 +8,43 @@ step from surface OCaml.
     ξ ::= ...               Kind variables
     i, j, n ::=             Natural numbers
       | 0                   Zero
-      | S(n)                Non-zero
-    ϕ ::=                   Obligations
-      | ξs                  Set of free kind variables
-    b ::=                   Base values
-      | ...                 Integers, constructors, etc.
+      | S(n)                Successor
+    μ ::=                   Mode
+      | S                   Static
+      | D                   Dynamic
+    b ::= ...               Base values
+      | true		    True
+      | false               False
     B ::= ...               Base types
-    e, f ::=                Terms
+      | bool                Booleans
+    e ::=                   Terms
       | x                   Variable
-      | fun (x :_ϕ τ) -> e  Term abstraction
+      | fun (x : τ) ->_μ e  Term abstraction
       | e e                 Normal application
       | Fun (α : κ) -> e    Type abstraction
       | e[τ]                Type application
-      | FUN (ξ <: κ) => e   Templated kind abstraction
+      | FUN ξ => e          Templated kind abstraction
       | e{κ}                Templated kind application
       | let x = e in e      Local variable
-      | ⌈e⌉                 Specialize
+      | { </ x = e /> }     Record construction
+      | e.x                 Record projection
+      | if e₁ then e₂ else e₃  Conditional
       | b                   Base values
     v ::=                   Values
-      | fun (x :_ϕ τ) -> e  Term abstraction
+      | fun (x : τ) ->_μ e  Term abstraction
       | Fun (α : κ) -> v    Type abstraction over value
-      | FUN (ξ <: κ) => v   Templated kind abstraction over value
+      | FUN ξ => v          Templated kind abstraction over value
+      | { </ x = v /> }     Records
       | b                   Base values
     τ ::=                   Types
       | α                   Type variable
-      | τ ->_ϕ τ            Function
+      | τ ->_μ τ            Function
       | ∀ (α : κ) -> τ      Polymorphic function
+      | { </ x : σ /> }     Record type (unordered)
       | B                   Base types
     σ ::=                   Type schemes
       | τ                   Non-templated type
-      | ∀ (ξ <: κ) => σ     Templated kind polymorphism
+      | ∀ ξ => σ            Templated kind polymorphism
     K ::=                   Base kinds
       | any                 Top kind
       | R                   Representable base kind
@@ -50,13 +57,13 @@ step from surface OCaml.
       | K                   Base kind
     Δ ::=                   Kind contexts
       | ∅                   Empty
-      | Δ, ξ <: κ           Kind variable
+      | Δ, ξ                Kind variable
     Σ ::=                   Type contexts
       | ∅                   Empty
       | Σ, α : κ            Type variable
     Γ ::=                   Term contexts
       | ∅                   Empty
-      | Γ, x :_ϕ σ          Variable
+      | Γ, x :_μ σ          Variable
     θ ::=                   Substitutions
       | ∅                   Empty
       | θ ∘ κ/ξ             Kind substitution
@@ -87,17 +94,16 @@ Any well-scoped kind is considered well-formed.
     ⊢ ∅ ok
 
     ⊢ Δ ok
-    Δ ⊢ κ ok
     -------------- (KVar)
-    ⊢ Δ, ξ <: κ
+    ⊢ Δ, ξ ok
 
 ## Typing rules for kinds
 
     Δ ⊢ κ layout ::=
 
-    Δ ⊢ κ layout
+    ⊢ Δ ok
     -------------------- (Var)
-    Δ, ξ <: κ ⊢ ξ layout
+    Δ, ξ ⊢ ξ layout
 
     ⊢ Δ ok
     ------------ (Base)
@@ -108,15 +114,15 @@ If `Δ ⊢ κ layout` does *not* hold and if `τ : κ`, then it is non-sensical 
 have any expression `e` such that `e : τ`.
 
 In OCaml, without higher-order kinds, *all* kinds describe layouts, as we
-see in the Layout axiom above. In a language with higher-order kinds, not
+see in the rules above. In a language with higher-order kinds, not
 all kinds will be layouts. We include `layout` premises below to suggest
 where checks might be needed in a more elaborate language.
 
     Δ ⊢ κ rep ::=
 
-    Δ ⊢ κ rep
+    ⊢ Δ ok
     ------------------ (Var)
-    Δ, ξ <: κ ⊢ ξ rep
+    Δ, ξ ⊢ ξ rep
 
     ⊢ Δ ok
     -------------- (Base)
@@ -131,10 +137,6 @@ Notably, `Δ ⊢ any rep` does *not* hold.
 There is a subtype relation on kinds.
 
     Δ ⊢ κ₁ <: κ₂ ::=
-
-    ⊢ Δ, ξ <: κ ok
-    ------------------ (Var)
-    Δ, ξ <: κ ⊢ ξ <: κ
 
     ⊢ Δ ok
     Δ ⊢ κ ok
@@ -166,7 +168,12 @@ There is a subtype relation on kinds.
 
 ## Base types
 
-    B : C ::= ...
+    B : R ::=
+
+    ------------ (Bool)
+    bool : value
+
+    ...
 
 ## Typing rules for types
 
@@ -186,13 +193,19 @@ There is a subtype relation on kinds.
     Δ; Σ ⊢ τ₂ : κ₂
     Δ ⊢ κ₂ layout
     ------------------------------ (Arrow)
-    Δ; Σ ⊢ τ₁ ->_ϕ τ₂ : value
+    Δ; Σ ⊢ τ₁ ->_μ τ₂ : value
 
     Δ ⊢ κ₁ ok
     Δ; Σ, α : κ₁ ⊢ τ : κ₂
     Δ ⊢ κ₂ layout
     -------------------------- (ForAll)
     Δ; Σ ⊢ ∀ (α : κ₁) -> τ : κ₂
+
+    ∀ i s.t. 1 ≤ i ≤ j:
+      Δ; Σ ⊢ σᵢ : κᵢ
+      Δ ⊢ κᵢ layout
+    -------------------------------------- (Record)
+    Δ; Σ ⊢ { x₁ : σ₁; ⋯; xⱼ : σⱼ } : value
 
     Δ; Σ ⊢ τ : κ₁
     Δ ⊢ κ₁ <: κ₂
@@ -207,96 +220,116 @@ There is a subtype relation on kinds.
     ------------- (Regular)
     Δ; Σ ⊢ˢ τ : κ
 
-    Δ, ξ <: κ₀; Σ ⊢ˢ σ : κ
+    Δ, ξ; Σ ⊢ˢ σ : κ
     Δ ⊢ κ layout
     ------------------------------ (KForAll)
-    Δ; Σ ⊢ˢ FUN (ξ <: κ₀) => σ : κ
-
-## Obligation assumption
-
-    Δ; ϕ ⊢ κ rep =def
-      assuming (∀ ξ s.t. ξ ∈ snd ϕ: Δ ⊢ ξ rep), then Δ ⊢ κ rep
-
-This more general than we really need, because
-kinds here are so simple. So we can simplify this to
-
-    Δ; ϕ ⊢ κ rep =def
-      (Δ ⊢ κ rep) ∨ (κ ∈ snd ϕ)
-
-which is more clearly decidable.
+    Δ; Σ ⊢ˢ FUN ξ => σ : κ
 
 ## Term contexts
 
     Δ; Σ ⊢ Γ ok ::=
 
     Δ ⊢ Σ ok
-    ----------- (Empty)
+    ------------ (Empty)
     Δ; Σ ⊢ ∅ ok
 
     Δ; Σ ⊢ˢ σ : κ
-    Δ; ϕ ⊢ κ rep
-    Δ; Σ ⊢ Γ ok
-    ϕ ⊆ dom(Δ)
-    -------------------------- (TermVar)
-    Δ; Σ ⊢ Γ, x :_ϕ σ ok
+    Δ ⊢ κ rep
+    Δ; Σ ⊢ Γ
+    -------------------------- (Var)
+    Δ; Σ ⊢ Γ, x :_μ σ ok
+
+## Sub-moding
+
+    μ₁ ≤ μ₂ ::=
+
+    ----- (Refl)
+    μ ≤ μ
+
+    ----- (Waiting)
+    S ≤ D
 
 ## Base values
 
-    b : B ::= ...
+    b : B ::=
+
+    ----------- :: (True)
+    true : bool
+
+    ------------ :: (False)
+    false : bool
+
+    ...
 
 ## Typing rules for terms
 
-    Δ; Σ; Γ ⊢ e :_ϕ σ ::=
+    Δ; Σ; Γ ⊢ e :_μ σ ::=
 
-    Δ; Σ ⊢ Γ, x :_ϕ σ ok
+    Δ; Σ ⊢ Γ, x :_μ₁ σ ok
+    μ₁ ≤ μ₂
     ------------------------------ (Var)
-    Δ; Σ; Γ, x :_ϕ σ ⊢ x :_ϕ σ
+    Δ; Σ; Γ, x :_μ₁ σ ⊢ x :_μ₂ σ
 
     b : B
     Δ; Σ ⊢ Γ ok
-    --------------- (Base)
-    Δ; Σ; Γ ⊢ b :_??? B
+    ----------------- (Base)
+    Δ; Σ; Γ ⊢ b :_μ B
 
     Δ; Σ ⊢ τ₁ : κ
-    Δ ⊢ κ layout
-    Δ; ϕ ⊢ κ rep
-    Δ; Σ; Γ, x :_ϕ' τ₁ ⊢ e :_??? τ₂
+    Δ ⊢ κ rep
+    Δ; Σ; Γ, x :_μ₁ τ₁ ⊢ e :_μ₃ τ₂
+    μ₂ ≤ μ₁ ≤ μ₃
     ---------------------------------------------- (Lam)
-    Δ; Σ; Γ ⊢ fun (x :_ϕ' τ₁) -> e :_ϕ τ₁ ->_ϕ' τ₂
+    Δ; Σ; Γ ⊢ fun (x : τ₁) ->_μ₁ e :_μ₂ τ₁ ->_μ₁ τ₂
 
-    Δ; Σ; Γ ⊢ f :_ϕ τ₁ ->_ϕ' τ₂
-    Δ; Σ; Γ ⊢ e :_ϕ' τ₁
+    Δ; Σ; Γ ⊢ e₁ :_μ₁ τ₁ ->_μ₂ τ₂
+    Δ; Σ; Γ ⊢ e₂ :_μ₁ τ₁
     Δ; Σ ⊢ τ₁ : κ₁
-    Δ; ϕ ⊢ κ₁ rep
-    ??? ϕ ϕ'
+    Δ ⊢ κ₁ rep
+    μ₂ ≤ μ₁
     ----------------------------------------- (App)
-    Δ; Σ; Γ ⊢ f e :_??? τ₂
+    Δ; Σ; Γ ⊢ e₁ e₂ :_μ₁ τ₂
 
     Δ ⊢ κ ok
-    Δ; Σ, α : κ; Γ ⊢ e :_ϕ τ
+    Δ; Σ, α : κ; Γ ⊢ e :_μ τ
     --------------------------------------------- (TyLam)
-    Δ; Σ; Γ ⊢ Fun (α : κ) -> e :_ϕ ∀ (α : κ) -> τ
+    Δ; Σ; Γ ⊢ Fun (α : κ) -> e :_μ ∀ (α : κ) -> τ
 
-    Δ; Σ; Γ ⊢ f :_ϕ ∀ (α : κ) -> τ₂
+    Δ; Σ; Γ ⊢ e :_μ ∀ (α : κ) -> τ₂
     Δ; Σ ⊢ τ₁ : κ
     ----------------------------------------------- (TyApp)
-    Δ; Σ; Γ ⊢ f[τ₁] :_ϕ τ₂{τ₁/α}
+    Δ; Σ; Γ ⊢ e[τ₁] :_μ τ₂{τ₁/α}
 
-    Δ ⊢ κ ok
-    Δ, ξ <: κ; Σ; Γ ⊢ e :_ϕ σ
+    Δ, ξ; Σ; Γ ⊢ e :_μ σ
     --------------------------------------------- (KiLam)
-    Δ; Σ; Γ ⊢ FUN (ξ <: κ) -> e :_ϕ ∀ (ξ <: κ) -> σ
+    Δ; Σ; Γ ⊢ FUN ξ => e :_μ ∀ ξ => σ
 
-    Δ; Σ; Γ ⊢ e :_ϕ ∀ (ξ <: κ₂) -> τ
-    Δ ⊢ κ <: κ₂
+    Δ; Σ; Γ ⊢ e :_S ∀ ξ -> τ
+    Δ ⊢ κ rep
     ------------------------------ (KiApp)
-    Δ; Σ; Γ ⊢ e{κ} :_ϕ τ{κ/ξ}
+    Δ; Σ; Γ ⊢ e{κ} :_μ τ{κ/ξ}
 
-    Δ; Σ; Γ ⊢ e₁ :_ϕ' σ₁
-    Δ; Σ; Γ, x :_ϕ' σ₁ ⊢ e₂ :_ϕ τ₂
-    ???? ϕ ϕ'
+    Δ; Σ; Γ ⊢ e₁ :_μ σ₁
+    Δ; Σ; Γ, x :_μ σ₁ ⊢ e₂ :_μ τ₂
     --------------------------------- (Let)
-    Δ; Σ; Γ ⊢ let x = e₁ in e₂ :_ϕ τ₂
+    Δ; Σ; Γ ⊢ let x = e₁ in e₂ :_μ τ₂
+
+    ∀ i s.t. 1 ≤ i ≤ j:
+      Δ; Σ; Γ ⊢ eᵢ :_μ σᵢ
+      Δ; Σ ⊢ˢ σᵢ : κᵢ
+      Δ ⊢ κᵢ rep
+    --------------------------------------------------------------------- (Construct)
+    Δ; Σ; Γ ⊢ { x₁ = e₁; ⋯; xⱼ = eⱼ } :_μ { x₁ : σ₁; ⋯; xⱼ : σⱼ }
+
+    Δ; Σ; Γ ⊢ e :_μ { x : σ; ⋯ }
+    ----------------------- (Project)
+    Δ; Σ; Γ ⊢ e.x :_μ σ
+
+    Δ; Σ; Γ ⊢ e₁ :_D bool
+    Δ; Σ; Γ ⊢ e₂ :_D τ
+    Δ; Σ; Γ ⊢ e₃ :_D τ
+    ------------------------------------- (If)
+    Δ; Σ; Γ ⊢ if e₁ then e₂ else e₃ :_D τ
 
 ## Operational semantics
 
@@ -305,7 +338,7 @@ which is more clearly decidable.
     Δ; Σ ⊢ τ : κ
     Δ ⊢ κ rep   (* this is the key check! *)
     ------------------------------------------- (Beta)
-    Δ; Σ ⊢ (fun (x :_ϕ τ) -> e₁) v₂ ⟶ e₁{v₂/x}
+    Δ; Σ ⊢ (fun (x : τ) ->_μ e₁) v₂ ⟶ e₁{v₂/x}
 
     Δ; Σ ⊢ e₁ ⟶ e₁'
     ----------------------- (App1)
@@ -326,12 +359,12 @@ which is more clearly decidable.
     --------------------- (TyApp)
     Δ; Σ ⊢ e[τ] ⟶ e'[τ]
 
-    Δ, ξ <: κ; Σ ⊢ e ⟶ e'
+    Δ, ξ; Σ ⊢ e ⟶ e'
     ----------------------------------------------- (KiAbs)
-    Δ; Σ ⊢ FUN (ξ <: κ) -> e ⟶ FUN (ξ <: κ) -> e'
+    Δ; Σ ⊢ FUN ξ => e ⟶ FUN ξ => e'
 
     ------------------------------------------- (KiBeta)
-    Δ; Σ ⊢ (FUN (ξ <: κ₁) -> v){κ₂} ⟶ v{κ₂/ξ}
+    Δ; Σ ⊢ (FUN ξ => v){κ₂} ⟶ v{κ₂/ξ}
 
     Δ; Σ ⊢ e ⟶ e'
     --------------------- (KiApp)
@@ -368,7 +401,7 @@ Case (Spec).
     Typing rule (Spec) applies, possibly after some (Sub)s      only possibility
     Let ϕ' = [n; ξs'], where ξs' ⊆ ξs                           premise of (Sub)
     e = e'{κ₁}{⋯}{κⱼ}                                           Conclusion of (Spec)
-    Δ; Σ; Γ ⊢ e' :_[n + j; ξs') ∀ (ξ₁ <: κ₁') ⋯ (ξⱼ <: κⱼ') -> τ₀   Premise of (Spec)
+    Δ; Σ; Γ ⊢ e' :_[n + j; ξs') ∀ ξ₁ <: ⋯ ξⱼ -> τ₀              Premise of (Spec)
     θ₀ = ∅                                                      Premise of (Spec)
     ∀ i s.t. 1 ≤ i ≤ j:
       θᵢ = κᵢ/ξᵢ ∘ θᵢ₋₁
@@ -385,7 +418,7 @@ Let `⌊e⌋ = ⌊e⌋_∅`.
 Define `⌊e⌋_θ` recursively by the following functions:
 
     ⌊e{κ₁}{⋯}{κⱼ}⌋_θ = ⌊e₀{θ'}⌋_θ    (j ≥ 1 and is chosen maximally)
-      where e{θ} = FUN (ξ₁ <: κ₁') ⋯ (ξⱼ <: κⱼ') => e₀
+      where e{θ} = FUN ξ₁ ⋯ ξⱼ => e₀
             θ' = {κ₁/ξ₁}{⋯}{κⱼ/ξⱼ}
 
     ⌊let x = e₁ in e₂⌋_θ = let x = ⌊e₁⌋_θ in ⌊e₂⌋_(θ ∘ e₁/x)
@@ -428,7 +461,7 @@ Case KiLam:
     ∅ ⊢ κ ok
     ∅, ξ <: κ; Σ; Γ ⊢ e :_ϕ σ
     --------------------------------------------- (KiLam)
-    ∅; Σ; Γ ⊢ FUN (ξ <: κ) -> e :_ϕ ∀ (ξ <: κ) -> σ
+    ∅; Σ; Γ ⊢ FUN ξ -> e :_ϕ ∀ ξ -> σ
 
 
 
@@ -471,3 +504,26 @@ If time: demo actual features that exist:
   - local
   - comprehensions
   - immutable arrays
+
+
+======================
+Examples.
+
+toplevel = S
+
+context2  action3   param1
+------------------------
+S          S         S     ok
+ S          S         D     ok: there might be a dynamic context on the way
+                            plausible, but I think unnecessary
+S          D         S     ok: param might be used statically
+S          D         D     ok: normal function definition
+ D          S         S     Bogus
+ D          S         D     Bogus
+ D          D         S     ok (probably don't care, at least not in OCaml)
+D          D         D     ok
+
+Rule: μ₂ ≤ μ₁ ≤ μ₃
+
+If Δ; Σ; Γ ⊢ e :_S σ, then
+   Δ; Σ; Γ ⊢ e :_D σ.

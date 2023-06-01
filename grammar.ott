@@ -1,0 +1,127 @@
+%% Ott grammar for the static mode supporting layout polymorphism
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Metavariables  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+metavar x ::= {{ com Term variables }}
+metavar a {{ tex \alpha }} ::= {{ com Type variables }}
+metavar X {{ tex \xi }} ::= {{ com Kind variables }}
+indexvar i, j ::=
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Grammar  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+grammar
+
+m {{ tex \mu }} :: 'mode_' ::= {{ com Mode }}
+  | S        ::   :: Static {{ com Static }}
+    {{ tex \mathcal{S} }}
+  | D        ::   :: Dynamic {{ com Dynamic }}
+    {{ tex \mathcal{D} }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Kinds  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+K :: 'base_kind_' ::= {{ com Base kinds }}
+  | any                 :: :: any {{ com Top kind }}
+  | R                   :: :: rep {{ com Representable base kind }}
+
+R :: 'base_rep_' ::= {{ com Representable base kinds }}
+  | value               :: :: value {{ com Value kind }}
+  | float64             :: :: float64 {{ com 64-bit floats }}
+
+k :: 'kind_' ::= {{ com Kinds }}
+  | X                   :: :: var {{ com Kind variable }}
+  | K                   :: :: base {{ com Base kind }}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Types  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+B :: 'base_type_' ::= {{ com Base type }}
+  | bool     ::   :: bool {{ com bool }}
+
+t :: 'type_' ::= {{ com Type }}
+  | a                   :: :: var    {{ com Type variable }}
+  | t1 ->_ m t2         :: :: arrow  {{ com Function }}
+    {{ tex [[t1]] \to_{[[m]]} [[t2]] }}
+  | all ( a : k ) -> t  :: :: forall {{ com Polymorphic function }}
+  | { field_types }     :: :: record {{ com Record type (unordered) }}
+  | B                   :: :: base   {{ com Base types }}
+
+s {{ tex \sigma }} :: 'type_scheme_' ::= {{ com Type schemes }}
+  | t                   :: :: mono {{ com Non-templated type }}
+  | all X => s          :: :: poly {{ com Templated kind polymorphism }}
+
+
+field_types {{ tex \overline{\ottmv{x} : \sigma} }} :: 'field_types_' ::=
+  | field_type1 ; ... ; field_typej :: :: field_type
+
+field_type :: 'field_type_' ::=
+  | x : s              :: :: type
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Terms  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+b :: 'base_value_' ::= {{ com Base value }}
+  | true     ::   :: true {{ com true }}
+  | false    ::   :: false {{ com false }}
+
+e,v :: 'term_' ::= {{ com Term }}
+  | x                        :: :: var     {{ com Variable }}
+  | 'fun' ( x : t ) ->_ m e  :: :: func    {{ com Term abstraction }}
+    {{ tex \ottkw{fun}\ ([[x]] : [[t]] ) \to_{[[m]]} [[e]] }}
+  | e1 e2                    :: :: app     {{ com Normal application }}
+  | Fun ( a : k ) -> e       :: :: tfunc   {{ com Type abstraction }}
+  | e [ t ]                  :: :: tapp    {{ com Type application }}
+  | FUN X => e               :: :: kfunc   {{ com Templated kind abstraction }}
+  | e { k }                  :: :: kapp    {{ com Templated kind application }}
+  | let x = e1 in e2         :: :: let     {{ com Local variable }}
+  | { field_assns }          :: :: record  {{ com Record construction }}
+  | e . x                    :: :: project {{ com Record projection }}
+  | if e1 then e2 else e3    :: :: if      {{ com Conditional }}
+  | b                        :: :: base    {{ com Base values }}
+
+field_assns {{ tex \overline{\ottmv{x} = \ottnt{e} } }}
+    :: 'field_assns_' ::= {{ com List of field assignments }}
+  | field_assn1 ; ... ; field_assnj :: :: list {{ com List }}
+
+field_assn :: 'field_assn_' ::= {{ com Field assignment }}
+  | x = e      :: :: Assign {{ com Assign }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Contexts  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+DD {{ tex \Delta }} :: 'kctx_' ::= {{ com Kind contexts }}
+  | empty            :: :: none
+  | X                :: :: one
+  | DD1 , .... , DDj :: :: many
+
+SS {{ tex \Sigma }} :: 'tctx_' ::= {{ com Type contexts }}
+  | empty            :: :: none
+  | type_binding     :: :: one
+  | SS1 , .... , SSj :: :: many
+
+type_binding :: 'tbnd_' ::=
+  | a : k            :: :: bnd
+
+GG {{ tex \Gamma }} :: 'ctx_' ::= {{ com Term contexts }}
+  | empty            :: :: none
+  | term_binding     :: :: one
+  | GG1 , .... , GGj :: :: many
+
+term_binding :: 'bnd_' ::=
+  | x :_ m s         :: :: bnd
+    {{ tex [[x]] { {:}_{[[m]]} } [[s]] }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Terminals  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+terminals :: 'terminals_' ::=
+  | ->                :: :: arrow {{ tex \to }}
+  | =>                :: :: Arrow {{ tex \Rightarrow }}
+  | all               :: :: all   {{ tex \forall }}
+  | 'fun'             :: :: func  {{ tex \ottkw{fun} }}
