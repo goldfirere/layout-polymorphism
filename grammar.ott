@@ -30,7 +30,7 @@ K :: 'base_kind_' ::= {{ com Base kinds }}
 
 R :: 'base_rep_' ::= {{ com Representable base kinds }}
   | value               :: :: value {{ com Value kind }}
-  | float64             :: :: float64 {{ com 64-bit floats }}
+  | floatsixtyfour      :: :: float64 {{ com 64-bit floats }}
 
 k {{ tex \kappa }} :: 'kind_' ::= {{ com Kinds }}
   | X                   :: :: var {{ com Kind variable }}
@@ -72,7 +72,7 @@ b :: 'base_value_' ::= {{ com Base value }}
   | true     ::   :: true {{ com true }}
   | false    ::   :: false {{ com false }}
 
-e,v :: 'term_' ::= {{ com Term }}
+e :: 'term_' ::= {{ com Term }}
   | x                        :: :: var     {{ com Variable }}
   | 'fun' ( x :_ m1 t ) ->_ m2 e  :: :: func    {{ com Term abstraction }}
     {{ tex \ottkw{fun}\ ([[x]] :_{[[m1]]} [[t]] ) \to_{[[m2]]} [[e]] }}
@@ -116,7 +116,7 @@ SS {{ tex \Sigma }} :: 'tctx_' ::= {{ com Type contexts }}
   | type_binding     :: :: one
   | SS1 , .... , SSj :: :: many
 
-type_binding :: 'tbnd_' ::=
+type_binding {{ tex \alpha {:} \kappa }} :: 'tbnd_' ::=
   | a : k            :: :: bnd
 
 GG {{ tex \Gamma }} :: 'ctx_' ::= {{ com Term contexts }}
@@ -124,7 +124,7 @@ GG {{ tex \Gamma }} :: 'ctx_' ::= {{ com Term contexts }}
   | term_binding     :: :: one
   | GG1 , .... , GGj :: :: many
 
-term_binding :: 'bnd_' ::=
+term_binding {{ tex \ottmv{x} { {:}_{\mu} } \sigma }} :: 'bnd_' ::=
   | x :_ m s         :: :: bnd
     {{ tex [[x]] { {:}_{[[m]]} } [[s]] }}
 
@@ -154,6 +154,8 @@ terminals :: 'terminals_' ::=
   | '<='              :: :: le    {{ tex \le }}
   | \\                :: :: newl  {{ tex \\ }}
   | |-s               :: :: entls {{ tex \vdash^{\mathsf{s} } }}
+  | floatsixtyfour    :: :: float {{ tex \ottkw{float64} }}
+  | empty             :: :: empty {{ tex \emptyset }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%  Formulae  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

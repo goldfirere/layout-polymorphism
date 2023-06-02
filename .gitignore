@@ -3,6 +3,10 @@
 *.fls
 *.out
 *.aux
+*.ptb
+*.blg
+*.bbl
 
 ott.tex
 at-work.pdf
+layout-poly.pdf

@@ -1,0 +1,29 @@
+%% -*- LaTeX -*-
+
+%% RAE's trick to make lhs2TeX produce ocaml code.
+
+\let\Bbbk\undefined    % see https://github.com/kosmikus/lhs2tex/issues/82
+%include polycode.fmt
+
+%subst conid a = "\conid{" a "}"
+%subst varid a = "\varid{" a "}"
+%subst keyword a = "\keyword{" a "}"
+
+%format struct = "\keyword{struct}"
+%format sig = "\keyword{sig}"
+%format end = "\keyword{end}"
+%format fun = "\keyword{fun}"
+%format . = ".\;"
+%format alpha = "\alpha"
+
+%format xi = "\xi"
+%format layout = "\keyword{layout}"
+
+%format (group(x)) = x
+%format hash = "{\#}\!\!"
+
+
+\newcommand{\keyword}[1]{\textcolor{BlueViolet}{\textbf{#1}}}
+\newcommand{\id}[1]{\textsf{\textsl{#1}}}
+\newcommand{\varid}[1]{\textcolor{Sepia}{\id{#1}}}
+\newcommand{\conid}[1]{\textcolor{OliveGreen}{\id{#1}}}
